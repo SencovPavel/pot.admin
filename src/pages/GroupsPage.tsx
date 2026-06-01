@@ -1,6 +1,10 @@
 import { useGroupsPageVM } from './useGroupsPageVM'
 import type { SortKey } from './useGroupsPageVM'
 
+interface Props {
+  onGroupClick: (id: string) => void
+}
+
 const COLS: { key: SortKey; label: string; right: boolean }[] = [
   { key: 'name',          label: 'Название',       right: false },
   { key: 'member_count',  label: 'Участники',      right: true  },
@@ -10,7 +14,7 @@ const COLS: { key: SortKey; label: string; right: boolean }[] = [
   { key: 'last_activity', label: 'Последняя акт.', right: false },
 ]
 
-export function GroupsPage() {
+export function GroupsPage({ onGroupClick }: Props) {
   const { totalCount, error, loading, sortKey, sortAsc, search, setSearch, sorted, handleSort } = useGroupsPageVM()
 
   if (error) return <div style={{ color: '#dc2626', fontSize: 14 }}>Ошибка: {error}</div>
@@ -59,7 +63,11 @@ export function GroupsPage() {
                   <td colSpan={COLS.length} style={{ padding: 24, textAlign: 'center', color: '#94a3b8' }}>Ничего не найдено</td>
                 </tr>
               ) : sorted.map((g, i) => (
-                <tr key={g.id} style={{ borderBottom: i < sorted.length - 1 ? '1px solid #f1f5f9' : 'none', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                <tr key={g.id} onClick={() => onGroupClick(g.id)}
+                  style={{ borderBottom: i < sorted.length - 1 ? '1px solid #f1f5f9' : 'none', background: i % 2 === 0 ? '#fff' : '#fafafa', cursor: 'pointer' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#f8faff')}
+                  onMouseLeave={e => (e.currentTarget.style.background = i % 2 === 0 ? '#fff' : '#fafafa')}
+                >
                   <td style={tdL}>
                     <div style={{ fontWeight: 600, color: '#1e293b' }}>{g.name}</div>
                     <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>{g.id}</div>

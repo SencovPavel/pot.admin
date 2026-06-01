@@ -67,6 +67,18 @@ export async function fetchActivity(days = 30) {
   }>
 }
 
+export async function fetchGroupDetail(groupId: string) {
+  const r = await fetch_(`/admin/stats/groups/${encodeURIComponent(groupId)}`)
+  if (!r.ok) throw new Error('forbidden')
+  return r.json() as Promise<{
+    group: { id: string; name: string; invite_code: string; tg_chat_id: number | null; created_at: string; member_count: number; event_count: number; item_count: number }
+    creator: { user_id: string; name: string; joined_at: string } | null
+    members: Array<{ user_id: string; name: string; joined_at: string; is_admin: boolean }>
+    events: Array<{ id: string; name: string; event_date: string; status: string }>
+    recentActivity: Array<{ type: string; user_id: string | null; platform: string | null; created_at: string }>
+  }>
+}
+
 export async function fetchTechnical() {
   const r = await fetch_('/admin/stats/technical')
   if (!r.ok) throw new Error('forbidden')

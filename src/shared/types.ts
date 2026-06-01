@@ -1,4 +1,4 @@
-export type Page = 'dashboard' | 'groups' | 'activity' | 'technical'
+export type Page = 'dashboard' | 'groups' | 'group-detail' | 'activity' | 'technical'
 
 export interface Me {
   id: string

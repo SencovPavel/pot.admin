@@ -2,6 +2,7 @@ import { useAppVM } from './useAppVM'
 import { LoginPage } from '@pages/LoginPage'
 import { DashboardPage } from '@pages/DashboardPage'
 import { GroupsPage } from '@pages/GroupsPage'
+import { GroupDetailPage } from '@pages/GroupDetailPage'
 import { ActivityPage } from '@pages/ActivityPage'
 import { TechnicalPage } from '@pages/TechnicalPage'
 import type { Page } from '@shared/types'
@@ -13,15 +14,13 @@ const NAV: { id: Page; label: string }[] = [
   { id: 'technical',  label: 'Технические' },
 ]
 
-const PAGE_MAP: Record<Page, () => JSX.Element | null> = {
-  dashboard:  DashboardPage,
-  groups:     GroupsPage,
-  activity:   ActivityPage,
-  technical:  TechnicalPage,
+// nav item that should appear active for a given page
+const NAV_ACTIVE: Partial<Record<Page, Page>> = {
+  'group-detail': 'groups',
 }
 
 export default function App() {
-  const { me, setMe, page, setPage, handleLogout } = useAppVM()
+  const { me, setMe, page, setPage, selectedGroupId, goToGroup, goBackToGroups, handleLogout } = useAppVM()
 
   if (me === 'loading') {
     return (
@@ -35,7 +34,20 @@ export default function App() {
     return <LoginPage onLogin={setMe} />
   }
 
-  const PageComponent = PAGE_MAP[page]
+  const activeNavId = NAV_ACTIVE[page] ?? page
+
+  function renderPage() {
+    if (page === 'group-detail' && selectedGroupId) {
+      return <GroupDetailPage groupId={selectedGroupId} onBack={goBackToGroups} />
+    }
+    if (page === 'groups') {
+      return <GroupsPage onGroupClick={goToGroup} />
+    }
+    if (page === 'dashboard')  return <DashboardPage />
+    if (page === 'activity')   return <ActivityPage />
+    if (page === 'technical')  return <TechnicalPage />
+    return null
+  }
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -55,9 +67,9 @@ export default function App() {
               onClick={() => setPage(n.id)}
               style={{
                 padding: '6px 14px', borderRadius: 8, border: 'none',
-                background: page === n.id ? '#f1f5f9' : 'transparent',
-                color: page === n.id ? '#1e293b' : '#64748b',
-                fontWeight: page === n.id ? 700 : 500,
+                background: activeNavId === n.id ? '#f1f5f9' : 'transparent',
+                color: activeNavId === n.id ? '#1e293b' : '#64748b',
+                fontWeight: activeNavId === n.id ? 700 : 500,
                 fontSize: 13, cursor: 'pointer', transition: 'all .15s',
               }}
             >
@@ -78,7 +90,7 @@ export default function App() {
       </header>
 
       <main style={{ flex: 1, padding: '28px 24px', maxWidth: 1200, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
-        <PageComponent />
+        {renderPage()}
       </main>
     </div>
   )
