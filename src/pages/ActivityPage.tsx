@@ -1,13 +1,8 @@
-import { useState, useEffect, useMemo } from 'react'
 import {
   LineChart, Line, BarChart, Bar,
   XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
-import { fetchActivity } from '../api'
-
-type Activity = Awaited<ReturnType<typeof fetchActivity>>
-
-const DAYS_OPTIONS = [7, 14, 30, 90]
+import { useActivityPageVM, DAYS_OPTIONS } from './useActivityPageVM'
 
 const TYPE_COLORS = [
   '#6366f1', '#2AABEE', '#10b981', '#f59e0b', '#ec4899',
@@ -22,48 +17,7 @@ const PLATFORM_COLORS: Record<string, string> = {
 }
 
 export function ActivityPage() {
-  const [days, setDays] = useState(30)
-  const [data, setData] = useState<Activity | null>(null)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    setLoading(true)
-    setError('')
-    fetchActivity(days)
-      .then(setData)
-      .catch(e => setError(e.message))
-      .finally(() => setLoading(false))
-  }, [days])
-
-  // Build pivot table for LineChart: [{day, type1: n, type2: n, ...}]
-  const byDayPivot = useMemo(() => {
-    if (!data) return []
-    const map = new Map<string, Record<string, string | number>>()
-    for (const row of data.byDayType) {
-      if (!map.has(row.day)) map.set(row.day, { day: formatDay(row.day) })
-      map.get(row.day)![row.type] = row.count
-    }
-    return [...map.values()].sort((a, b) => String(a.day).localeCompare(String(b.day)))
-  }, [data])
-
-  // Platform pivot: [{day, telegram: n, web: n, ...}]
-  const platformPivot = useMemo(() => {
-    if (!data) return []
-    const map = new Map<string, Record<string, string | number>>()
-    for (const row of data.platforms) {
-      if (!map.has(row.day)) map.set(row.day, { day: formatDay(row.day) })
-      map.get(row.day)![row.platform] = row.count
-    }
-    return [...map.values()].sort((a, b) => String(a.day).localeCompare(String(b.day)))
-  }, [data])
-
-  const topTypes = useMemo(() => data?.topTypes ?? [], [data])
-  const platformKeys = useMemo(() => {
-    if (!data) return []
-    return [...new Set(data.platforms.map(p => p.platform))]
-  }, [data])
-  const topTypeKeys = useMemo(() => topTypes.map(t => t.type), [topTypes])
+  const { days, setDays, data, error, loading, byDayPivot, platformPivot, topTypes, platformKeys, topTypeKeys } = useActivityPageVM()
 
   if (error) return <div style={{ color: '#dc2626', fontSize: 14 }}>Ошибка: {error}</div>
 
@@ -95,7 +49,6 @@ export function ActivityPage() {
         <div style={{ color: '#94a3b8', fontSize: 14 }}>Загрузка…</div>
       ) : !data ? null : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Events by day + type */}
           <div style={card}>
             <div style={cardTitle}>События по дням и типам (топ-10)</div>
             <ResponsiveContainer width="100%" height={260}>
@@ -106,15 +59,14 @@ export function ActivityPage() {
                 <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />
                 <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
                 {topTypeKeys.slice(0, 10).map((type, i) => (
-                  <Line key={type} type="monotone" dataKey={type} stroke={TYPE_COLORS[i % TYPE_COLORS.length]}
-                    strokeWidth={1.5} dot={false} />
+                  <Line key={type} type="monotone" dataKey={type}
+                    stroke={TYPE_COLORS[i % TYPE_COLORS.length]} strokeWidth={1.5} dot={false} />
                 ))}
               </LineChart>
             </ResponsiveContainer>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-            {/* Top types bar */}
             <div style={card}>
               <div style={cardTitle}>Топ типов событий</div>
               <ResponsiveContainer width="100%" height={220}>
@@ -127,7 +79,6 @@ export function ActivityPage() {
               </ResponsiveContainer>
             </div>
 
-            {/* Platform by day */}
             <div style={card}>
               <div style={cardTitle}>Платформы по дням</div>
               {platformPivot.length === 0 ? (
@@ -142,8 +93,7 @@ export function ActivityPage() {
                     <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
                     {platformKeys.map(platform => (
                       <Line key={platform} type="monotone" dataKey={platform}
-                        stroke={PLATFORM_COLORS[platform] ?? '#94a3b8'}
-                        strokeWidth={2} dot={false} />
+                        stroke={PLATFORM_COLORS[platform] ?? '#94a3b8'} strokeWidth={2} dot={false} />
                     ))}
                   </LineChart>
                 </ResponsiveContainer>
@@ -156,18 +106,6 @@ export function ActivityPage() {
   )
 }
 
-function formatDay(iso: string) {
-  const d = new Date(iso)
-  return `${d.getDate()}.${String(d.getMonth() + 1).padStart(2, '0')}`
-}
-
-const h1: React.CSSProperties = {
-  fontSize: 22, fontWeight: 800, color: '#1e293b', letterSpacing: '-0.02em',
-}
-const card: React.CSSProperties = {
-  background: '#fff', borderRadius: 14, padding: '20px 22px',
-  boxShadow: '0 1px 4px rgba(0,0,0,.06)',
-}
-const cardTitle: React.CSSProperties = {
-  fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 16,
-}
+const h1: React.CSSProperties      = { fontSize: 22, fontWeight: 800, color: '#1e293b', letterSpacing: '-0.02em' }
+const card: React.CSSProperties    = { background: '#fff', borderRadius: 14, padding: '20px 22px', boxShadow: '0 1px 4px rgba(0,0,0,.06)' }
+const cardTitle: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 16 }

@@ -1,14 +1,10 @@
-import { useState, useEffect } from 'react'
-import { getMe, logout } from './api'
-import { LoginPage } from './pages/LoginPage'
-import { DashboardPage } from './pages/DashboardPage'
-import { GroupsPage } from './pages/GroupsPage'
-import { ActivityPage } from './pages/ActivityPage'
-import { TechnicalPage } from './pages/TechnicalPage'
-
-type Page = 'dashboard' | 'groups' | 'activity' | 'technical'
-
-interface Me { id: string; name: string; email: string; is_superadmin?: boolean }
+import { useAppVM } from './useAppVM'
+import { LoginPage } from '@pages/LoginPage'
+import { DashboardPage } from '@pages/DashboardPage'
+import { GroupsPage } from '@pages/GroupsPage'
+import { ActivityPage } from '@pages/ActivityPage'
+import { TechnicalPage } from '@pages/TechnicalPage'
+import type { Page } from '@shared/types'
 
 const NAV: { id: Page; label: string }[] = [
   { id: 'dashboard',  label: 'Обзор' },
@@ -17,13 +13,15 @@ const NAV: { id: Page; label: string }[] = [
   { id: 'technical',  label: 'Технические' },
 ]
 
-export default function App() {
-  const [me, setMe] = useState<Me | null | 'loading'>('loading')
-  const [page, setPage] = useState<Page>('dashboard')
+const PAGE_MAP: Record<Page, () => JSX.Element | null> = {
+  dashboard:  DashboardPage,
+  groups:     GroupsPage,
+  activity:   ActivityPage,
+  technical:  TechnicalPage,
+}
 
-  useEffect(() => {
-    getMe().then(setMe).catch(() => setMe(null))
-  }, [])
+export default function App() {
+  const { me, setMe, page, setPage, handleLogout } = useAppVM()
 
   if (me === 'loading') {
     return (
@@ -37,32 +35,15 @@ export default function App() {
     return <LoginPage onLogin={setMe} />
   }
 
-  const handleLogout = async () => {
-    await logout()
-    setMe(null)
-  }
-
-  const PageComponent = {
-    dashboard:  DashboardPage,
-    groups:     GroupsPage,
-    activity:   ActivityPage,
-    technical:  TechnicalPage,
-  }[page]
+  const PageComponent = PAGE_MAP[page]
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Top nav */}
       <header style={{
-        background: '#fff',
-        borderBottom: '1px solid #e2e8f0',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 0,
-        padding: '0 24px',
-        height: 52,
-        position: 'sticky',
-        top: 0,
-        zIndex: 10,
+        background: '#fff', borderBottom: '1px solid #e2e8f0',
+        display: 'flex', alignItems: 'center',
+        padding: '0 24px', height: 52,
+        position: 'sticky', top: 0, zIndex: 10,
       }}>
         <span style={{ fontWeight: 800, fontSize: 15, color: '#1e293b', marginRight: 32, letterSpacing: '-0.02em' }}>
           🧺 Picnic Admin
@@ -73,15 +54,11 @@ export default function App() {
               key={n.id}
               onClick={() => setPage(n.id)}
               style={{
-                padding: '6px 14px',
-                borderRadius: 8,
-                border: 'none',
+                padding: '6px 14px', borderRadius: 8, border: 'none',
                 background: page === n.id ? '#f1f5f9' : 'transparent',
                 color: page === n.id ? '#1e293b' : '#64748b',
                 fontWeight: page === n.id ? 700 : 500,
-                fontSize: 13,
-                cursor: 'pointer',
-                transition: 'all .15s',
+                fontSize: 13, cursor: 'pointer', transition: 'all .15s',
               }}
             >
               {n.label}
@@ -100,7 +77,6 @@ export default function App() {
         </button>
       </header>
 
-      {/* Page content */}
       <main style={{ flex: 1, padding: '28px 24px', maxWidth: 1200, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
         <PageComponent />
       </main>

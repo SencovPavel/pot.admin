@@ -11,7 +11,7 @@ export async function login(email: string, password: string) {
   })
   const data = await r.json()
   if (!r.ok) throw new Error(data.error ?? 'Ошибка входа')
-  return data as { id: string; name: string; email: string }
+  return data as { id: string; name: string; email: string; is_superadmin?: boolean }
 }
 
 export async function logout() {

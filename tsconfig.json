@@ -11,7 +11,13 @@
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
-    "strict": true
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["src/shared/*"],
+      "@pages/*":  ["src/pages/*"],
+      "@app/*":    ["src/app/*"]
+    }
   },
   "include": ["src"]
 }

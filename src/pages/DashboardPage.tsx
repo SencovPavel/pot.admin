@@ -1,12 +1,9 @@
-import { useState, useEffect } from 'react'
 import {
   AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
-import { fetchOverview } from '../api'
-import { StatCard } from '../components/StatCard'
-
-type Overview = Awaited<ReturnType<typeof fetchOverview>>
+import { useDashboardPageVM } from './useDashboardPageVM'
+import { StatCard } from '@shared/components/StatCard'
 
 const PLATFORM_COLORS: Record<string, string> = {
   telegram: '#2AABEE',
@@ -16,40 +13,26 @@ const PLATFORM_COLORS: Record<string, string> = {
 }
 
 export function DashboardPage() {
-  const [data, setData] = useState<Overview | null>(null)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    fetchOverview()
-      .then(setData)
-      .catch(e => setError(e.message))
-  }, [])
+  const { data, error, sparklineData } = useDashboardPageVM()
 
   if (error) return <Err msg={error} />
-  if (!data) return <Loading />
-
-  const sparklineData = data.sparkline.map(d => ({
-    day: formatDay(d.day),
-    count: d.count,
-  }))
+  if (!data)  return <Loading />
 
   return (
     <div>
       <h1 style={h1}>Обзор</h1>
 
-      {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16, marginBottom: 28 }}>
-        <StatCard label="Групп"          value={data.totalGroups}    accent="#6366f1" />
-        <StatCard label="Пользователей"  value={data.totalUsers}     accent="#2AABEE" />
+        <StatCard label="Групп"               value={data.totalGroups}   accent="#6366f1" />
+        <StatCard label="Пользователей"       value={data.totalUsers}    accent="#2AABEE" />
         <StatCard label="Активных мероприятий" value={data.activeEvents} accent="#10b981" />
-        <StatCard label="Товаров"        value={data.totalItems}     accent="#f59e0b" />
-        <StatCard label="Активны сегодня" value={data.activeToday}   accent="#ec4899" sub="уникальных пользователей" />
-        <StatCard label="Активны за неделю" value={data.activeWeek}  accent="#8b5cf6" sub="уникальных пользователей" />
+        <StatCard label="Товаров"             value={data.totalItems}    accent="#f59e0b" />
+        <StatCard label="Активны сегодня"     value={data.activeToday}   accent="#ec4899" sub="уникальных пользователей" />
+        <StatCard label="Активны за неделю"   value={data.activeWeek}    accent="#8b5cf6" sub="уникальных пользователей" />
         <StatCard label="Новых групп за неделю" value={data.newGroupsWeek} accent="#10b981" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20 }}>
-        {/* Sparkline */}
         <div style={card}>
           <div style={cardTitle}>Активность за 14 дней</div>
           <ResponsiveContainer width="100%" height={200}>
@@ -69,7 +52,6 @@ export function DashboardPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Platform breakdown */}
         <div style={card}>
           <div style={cardTitle}>Платформы</div>
           {data.platforms.length === 0 ? (
@@ -80,10 +62,7 @@ export function DashboardPage() {
                 <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} allowDecimals={false} />
                 <YAxis type="category" dataKey="platform" tick={{ fontSize: 12, fill: '#64748b' }} width={72} />
                 <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-                <Bar dataKey="count" name="События" radius={[0, 4, 4, 0]}
-                  fill="#6366f1"
-                  label={false}
-                />
+                <Bar dataKey="count" name="События" radius={[0, 4, 4, 0]} fill="#6366f1" label={false} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -105,25 +84,9 @@ export function DashboardPage() {
   )
 }
 
-function formatDay(iso: string) {
-  const d = new Date(iso)
-  return `${d.getDate()}.${String(d.getMonth() + 1).padStart(2, '0')}`
-}
+function Loading() { return <div style={{ color: '#94a3b8', fontSize: 14 }}>Загрузка…</div> }
+function Err({ msg }: { msg: string }) { return <div style={{ color: '#dc2626', fontSize: 14 }}>Ошибка: {msg}</div> }
 
-function Loading() {
-  return <div style={{ color: '#94a3b8', fontSize: 14 }}>Загрузка…</div>
-}
-function Err({ msg }: { msg: string }) {
-  return <div style={{ color: '#dc2626', fontSize: 14 }}>Ошибка: {msg}</div>
-}
-
-const h1: React.CSSProperties = {
-  fontSize: 22, fontWeight: 800, color: '#1e293b', marginBottom: 24, letterSpacing: '-0.02em',
-}
-const card: React.CSSProperties = {
-  background: '#fff', borderRadius: 14, padding: '20px 22px',
-  boxShadow: '0 1px 4px rgba(0,0,0,.06)',
-}
-const cardTitle: React.CSSProperties = {
-  fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 16,
-}
+const h1: React.CSSProperties      = { fontSize: 22, fontWeight: 800, color: '#1e293b', marginBottom: 24, letterSpacing: '-0.02em' }
+const card: React.CSSProperties    = { background: '#fff', borderRadius: 14, padding: '20px 22px', boxShadow: '0 1px 4px rgba(0,0,0,.06)' }
+const cardTitle: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 16 }
