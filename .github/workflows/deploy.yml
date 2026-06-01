@@ -1,0 +1,34 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main, dev]
+
+jobs:
+  deploy:
+    name: Deploy → ${{ github.ref_name }}
+    runs-on: self-hosted
+
+    steps:
+      - name: Deploy admin
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -e
+
+          if [ "$BRANCH" = "main" ]; then
+            DEPLOY_DIR="/var/www/picnic/admin-main"
+          else
+            DEPLOY_DIR="/var/www/picnic/admin-dev"
+          fi
+
+          echo "▶ Deploying admin '$BRANCH' → $DEPLOY_DIR"
+
+          cd "$DEPLOY_DIR"
+          git fetch origin
+          git checkout "$BRANCH"
+          git reset --hard "origin/$BRANCH"
+          npm ci --prefer-offline
+          npm run build
+
+          echo "✅ Done: $BRANCH → $DEPLOY_DIR/dist"
