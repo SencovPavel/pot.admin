@@ -2,7 +2,9 @@ import {
   BarChart, Bar, AreaChart, Area,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
-import { useTechnicalPageVM, fmtDateTime } from './useTechnicalPageVM'
+import { exportAnalyticsCsvUrl } from '@shared/api/api'
+import { fmtDateMsk } from '@shared/lib/format'
+import { useTechnicalPageVM } from './useTechnicalPageVM'
 
 export function TechnicalPage() {
   const { data, error, loading, hourlyFull, totalByDay } = useTechnicalPageVM()
@@ -13,7 +15,12 @@ export function TechnicalPage() {
 
   return (
     <div>
-      <h1 style={h1}>Технические</h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+        <h1 style={{ ...h1, marginBottom: 0 }}>Технические</h1>
+        <span style={{ fontSize: 12, color: '#94a3b8' }}>часы MSK</span>
+        <div style={{ flex: 1 }} />
+        <a href={exportAnalyticsCsvUrl(30)} style={{ fontSize: 12, color: '#6366f1', fontWeight: 600 }}>CSV analytics 30д</a>
+      </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         <div style={card}>
@@ -95,7 +102,7 @@ export function TechnicalPage() {
                   {data.errors.map((e, i) => (
                     <tr key={e.id} style={{ borderBottom: '1px solid #f1f5f9', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
                       <td style={{ ...tdL, color: '#94a3b8' }}>{e.id}</td>
-                      <td style={{ ...tdL, color: '#dc2626', fontWeight: 600 }}>{e.type}</td>
+                      <td style={{ ...tdL, color: '#dc2626', fontWeight: 600 }}>{e.label ?? e.type}</td>
                       <td style={{ ...tdL, color: '#94a3b8' }}>{e.user_id ?? '—'}</td>
                       <td style={{ ...tdL, color: '#94a3b8' }}>{e.group_id ?? '—'}</td>
                       <td style={tdL}>
@@ -103,7 +110,7 @@ export function TechnicalPage() {
                           {JSON.stringify(e.meta).slice(0, 60)}
                         </span>
                       </td>
-                      <td style={{ ...tdL, whiteSpace: 'nowrap' }}>{fmtDateTime(e.created_at)}</td>
+                      <td style={{ ...tdL, whiteSpace: 'nowrap' }}>{fmtDateMsk(e.created_at)}</td>
                     </tr>
                   ))}
                 </tbody>

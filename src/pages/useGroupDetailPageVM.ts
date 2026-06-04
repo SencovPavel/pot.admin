@@ -28,5 +28,13 @@ export function useGroupDetailPageVM(groupId: string) {
     [data],
   )
 
-  return { data, error, loading, admins, regularMembers }
+  const reload = () => {
+    setLoading(true)
+    fetchGroupDetail(groupId)
+      .then(setData)
+      .catch(e => setError(e instanceof Error ? e.message : 'Ошибка'))
+      .finally(() => setLoading(false))
+  }
+
+  return { data, error, loading, admins, regularMembers, reload }
 }

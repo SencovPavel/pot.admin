@@ -1,185 +1,281 @@
+import { useState } from 'react'
+import { BotBadge } from '@shared/components/BotBadge'
+import { JsonDetails } from '@shared/components/JsonDetails'
+import { fmtDateMsk, fmtDateShortMsk, fmtNum } from '@shared/lib/format'
+import { archiveGroup } from '@shared/api/api'
 import { useGroupDetailPageVM } from './useGroupDetailPageVM'
 
 interface Props {
   groupId: string
   onBack: () => void
+  onUserClick?: (userId: string) => void
+  onEventClick?: (groupId: string, eventId: string) => void
 }
+
+type Tab = 'summary' | 'members' | 'events' | 'activity' | 'items'
 
 const STATUS_LABEL: Record<string, { label: string; color: string }> = {
-  active:   { label: 'Активно',   color: '#10b981' },
-  archived: { label: 'Архив',     color: '#94a3b8' },
-  draft:    { label: 'Черновик',  color: '#f59e0b' },
+  active: { label: 'Активно', color: '#10b981' },
+  completed: { label: 'Завершено', color: '#94a3b8' },
 }
 
-export function GroupDetailPage({ groupId, onBack }: Props) {
-  const { data, error, loading, admins, regularMembers } = useGroupDetailPageVM(groupId)
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'summary', label: 'Сводка' },
+  { id: 'members', label: 'Участники' },
+  { id: 'events', label: 'События' },
+  { id: 'activity', label: 'Активность' },
+  { id: 'items', label: 'Товары' },
+]
 
-  if (error)   return <div style={{ color: '#dc2626', fontSize: 14 }}>Ошибка: {error}</div>
+export function GroupDetailPage({ groupId, onBack, onUserClick, onEventClick }: Props) {
+  const { data, error, loading, admins, regularMembers, reload } = useGroupDetailPageVM(groupId)
+  const [tab, setTab] = useState<Tab>('summary')
+  const [archiving, setArchiving] = useState(false)
+
+  if (error) return <div style={{ color: '#dc2626', fontSize: 14 }}>Ошибка: {error}</div>
   if (loading) return <div style={{ color: '#94a3b8', fontSize: 14 }}>Загрузка…</div>
-  if (!data)   return null
+  if (!data) return null
 
-  const { group, creator, events, recentActivity } = data
+  const { group, creator, events, recentActivity, productActivity, topItems } = data
+
+  const handleArchive = async () => {
+    if (!confirm(`Архивировать группу «${group.name}»?`)) return
+    setArchiving(true)
+    try {
+      await archiveGroup(groupId)
+      reload()
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Ошибка')
+    } finally {
+      setArchiving(false)
+    }
+  }
 
   return (
     <div>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-        <button onClick={onBack} style={backBtn}>← Группы</button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+        <button type="button" onClick={onBack} style={backBtn}>← Группы</button>
+        {group.emoji && <span style={{ fontSize: 22 }}>{group.emoji}</span>}
         <h1 style={h1}>{group.name}</h1>
-        <span style={{ fontSize: 12, color: '#94a3b8', marginTop: 3 }}>{group.id}</span>
+        <span style={{ fontSize: 12, color: '#94a3b8' }}>{group.id}</span>
+        {!group.archived_at && (
+          <button type="button" onClick={handleArchive} disabled={archiving} style={archiveBtn}>
+            {archiving ? '…' : 'Архивировать'}
+          </button>
+        )}
+        {group.archived_at && (
+          <span style={{ fontSize: 11, color: '#ef4444', fontWeight: 700 }}>В архиве</span>
+        )}
       </div>
 
-      {/* Meta row */}
-      <div style={{ display: 'flex', gap: 20, marginBottom: 24, flexWrap: 'wrap' }}>
-        <MetaChip label="Создана" value={fmtDate(group.created_at)} />
-        <MetaChip label="Участников" value={String(group.member_count)} />
-        <MetaChip label="Мероприятий" value={String(group.event_count)} />
-        <MetaChip label="Товаров" value={String(group.item_count)} />
-        <MetaChip label="Код приглашения" value={group.invite_code} mono />
-        {group.tg_chat_id && <MetaChip label="TG Chat ID" value={String(group.tg_chat_id)} mono />}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 20, flexWrap: 'wrap' }}>
+        {TABS.map(t => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setTab(t.id)}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 8,
+              border: 'none',
+              background: tab === t.id ? '#6366f1' : '#f1f5f9',
+              color: tab === t.id ? '#fff' : '#64748b',
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-        {/* Left: creator + members */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {tab === 'summary' && (
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
+          <MetaChip label="Создана" value={fmtDateShortMsk(group.created_at)} />
+          <MetaChip label="Участников" value={String(group.member_count)} />
+          <MetaChip label="Мероприятий" value={String(group.event_count)} />
+          <MetaChip label="Товаров" value={String(group.item_count)} />
+          <MetaChip label="Сумма списка" value={`${fmtNum(Math.round(group.items_total_sum))} ₽`} />
+          <MetaChip label="Семья (записей)" value={String(group.family_count)} />
+          <MetaChip label="Код" value={group.invite_code} mono />
+          <MetaChip label="Бот" value="" extra={<BotBadge telegram={group.bot_telegram} max={group.bot_max} />} />
+          {group.tg_chat_id != null && <MetaChip label="TG Chat" value={String(group.tg_chat_id)} mono />}
+          {Object.entries(group.events_by_status || {}).map(([st, n]) => (
+            <MetaChip key={st} label={`События: ${st}`} value={String(n)} />
+          ))}
+        </div>
+      )}
 
-          {/* Creator */}
+      {tab === 'members' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           {creator && (
             <div style={card}>
-              <div style={cardTitle}>Создатель группы</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={avatar}>{creator.name.slice(0, 1).toUpperCase()}</div>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b' }}>{creator.name}</div>
-                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-                    ID: {creator.user_id} · вступил {fmtDate(creator.joined_at)}
-                  </div>
-                </div>
-              </div>
+              <div style={cardTitle}>Создатель</div>
+              <MemberRow m={creator} onUserClick={onUserClick} showAdmin />
             </div>
           )}
-
-          {/* Admins */}
-          {admins.length > 1 && (
-            <div style={card}>
-              <div style={cardTitle}>Администраторы ({admins.length})</div>
-              {admins.map(m => (
-                <MemberRow key={m.user_id} m={m} />
-              ))}
-            </div>
-          )}
-
-          {/* Members */}
           <div style={card}>
+            <div style={cardTitle}>Админы ({admins.length})</div>
+            {admins.map(m => <MemberRow key={m.user_id} m={m} onUserClick={onUserClick} showAdmin />)}
+          </div>
+          <div style={{ ...card, gridColumn: '1 / -1' }}>
             <div style={cardTitle}>Участники ({regularMembers.length})</div>
             {regularMembers.length === 0
-              ? <div style={{ color: '#94a3b8', fontSize: 13 }}>Только создатель</div>
-              : regularMembers.map(m => <MemberRow key={m.user_id} m={m} />)
-            }
+              ? <div style={{ color: '#94a3b8', fontSize: 13 }}>Нет</div>
+              : regularMembers.map(m => <MemberRow key={m.user_id} m={m} onUserClick={onUserClick} />)}
           </div>
         </div>
+      )}
 
-        {/* Right: events + activity */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-          {/* Events */}
-          <div style={card}>
-            <div style={cardTitle}>Мероприятия ({events.length})</div>
-            {events.length === 0
-              ? <div style={{ color: '#94a3b8', fontSize: 13 }}>Нет мероприятий</div>
-              : events.map(e => {
-                  const s = STATUS_LABEL[e.status] ?? { label: e.status, color: '#94a3b8' }
-                  return (
-                    <div key={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: 13, color: '#1e293b' }}>{e.name}</div>
-                        <div style={{ fontSize: 11, color: '#94a3b8' }}>{fmtDate(e.event_date)}</div>
-                      </div>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: s.color, background: s.color + '18', padding: '2px 8px', borderRadius: 20 }}>
-                        {s.label}
-                      </span>
-                    </div>
-                  )
-                })
-            }
-          </div>
-
-          {/* Recent activity */}
-          <div style={card}>
-            <div style={cardTitle}>Последняя активность ({recentActivity.length})</div>
-            {recentActivity.length === 0
-              ? <div style={{ color: '#94a3b8', fontSize: 13 }}>Нет данных</div>
-              : recentActivity.map((a, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #f1f5f9', fontSize: 12 }}>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
-                      <span style={{ color: '#6366f1', fontWeight: 600, flexShrink: 0 }}>{a.type}</span>
-                      {a.platform && (
-                        <span style={{ color: '#94a3b8', fontSize: 10, background: '#f1f5f9', padding: '1px 6px', borderRadius: 10, flexShrink: 0 }}>
-                          {a.platform}
-                        </span>
-                      )}
-                      {a.user_id && (
-                        <span style={{ color: '#94a3b8', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {a.user_id}
-                        </span>
-                      )}
-                    </div>
-                    <span style={{ color: '#94a3b8', flexShrink: 0, marginLeft: 8 }}>{fmtTime(a.created_at)}</span>
+      {tab === 'events' && (
+        <div style={card}>
+          {events.length === 0
+            ? <div style={{ color: '#94a3b8' }}>Нет мероприятий</div>
+            : events.map(e => {
+              const s = STATUS_LABEL[e.status] ?? { label: e.status, color: '#94a3b8' }
+              return (
+                <div
+                  key={e.id}
+                  role={onEventClick ? 'button' : undefined}
+                  onClick={() => onEventClick?.(groupId, e.id)}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    padding: '8px 0',
+                    borderBottom: '1px solid #f1f5f9',
+                    cursor: onEventClick ? 'pointer' : 'default',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 13 }}>{e.name}</div>
+                    <div style={{ fontSize: 11, color: '#94a3b8' }}>{fmtDateMsk(e.event_date)} · {e.id}</div>
                   </div>
-                ))
-            }
+                  <span style={{ fontSize: 11, fontWeight: 700, color: s.color }}>{s.label}</span>
+                </div>
+              )
+            })}
+        </div>
+      )}
+
+      {tab === 'activity' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div style={card}>
+            <div style={cardTitle}>Продуктовая лента (group_activity)</div>
+            {productActivity.length === 0
+              ? <div style={{ color: '#94a3b8', fontSize: 13 }}>Нет</div>
+              : productActivity.map((a, i) => (
+                <div key={i} style={activityRow}>
+                  <div>
+                    <span style={{ fontWeight: 700, color: '#6366f1' }}>{a.label}</span>
+                    {a.actor_name && <span style={{ color: '#64748b', marginLeft: 8 }}>{a.actor_name}</span>}
+                    <div style={{ fontSize: 10, color: '#94a3b8' }}>{fmtDateMsk(a.created_at)}</div>
+                    <JsonDetails data={a.data} />
+                  </div>
+                </div>
+              ))}
+          </div>
+          <div style={card}>
+            <div style={cardTitle}>Analytics</div>
+            {recentActivity.length === 0
+              ? <div style={{ color: '#94a3b8', fontSize: 13 }}>Нет</div>
+              : recentActivity.map((a, i) => (
+                <div key={i} style={activityRow}>
+                  <span style={{ fontWeight: 700, color: '#6366f1' }}>{a.label ?? a.type}</span>
+                  {a.platform && <span style={pill}>{a.platform}</span>}
+                  {a.user_id && onUserClick ? (
+                    <button type="button" onClick={() => onUserClick(a.user_id!)} style={linkBtn}>{a.user_id}</button>
+                  ) : a.user_id ? (
+                    <span style={{ fontSize: 10, color: '#94a3b8' }}>{a.user_id}</span>
+                  ) : null}
+                  <div style={{ fontSize: 10, color: '#94a3b8' }}>{fmtDateMsk(a.created_at)}</div>
+                  <JsonDetails data={a.meta} />
+                </div>
+              ))}
           </div>
         </div>
-      </div>
+      )}
+
+      {tab === 'items' && (
+        <div style={card}>
+          <div style={cardTitle}>Топ позиций</div>
+          {topItems.length === 0
+            ? <div style={{ color: '#94a3b8' }}>Нет товаров</div>
+            : (
+              <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                    <th style={thL}>Название</th>
+                    <th style={thR}>Кол-во</th>
+                    <th style={thR}>Цена</th>
+                    <th style={thL}>Источник</th>
+                    <th style={thL}>Событие</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topItems.map((it, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid #f8fafc' }}>
+                      <td style={tdL}>{it.name}</td>
+                      <td style={tdR}>{it.qty} {it.unit}</td>
+                      <td style={tdR}>{it.price}</td>
+                      <td style={tdL}>{it.source}</td>
+                      <td style={tdL}>{it.event_name ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+        </div>
+      )}
     </div>
   )
 }
 
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-function MemberRow({ m }: { m: { user_id: string; name: string; joined_at: string; is_admin: boolean } }) {
+function MemberRow({ m, onUserClick, showAdmin }: {
+  m: { user_id: string; name: string; joined_at: string; is_admin?: boolean }
+  onUserClick?: (id: string) => void
+  showAdmin?: boolean
+}) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid #f8fafc' }}>
-      <div style={{ ...avatar, width: 28, height: 28, fontSize: 11 }}>{m.name.slice(0, 1).toUpperCase()}</div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 600, fontSize: 13, color: '#1e293b' }}>{m.name}</div>
-        <div style={{ fontSize: 10, color: '#94a3b8' }}>{m.user_id}</div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid #f8fafc' }}>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontWeight: 600, fontSize: 13 }}>{m.name}{showAdmin || m.is_admin ? ' ★' : ''}</div>
+        {onUserClick ? (
+          <button type="button" onClick={() => onUserClick(m.user_id)} style={linkBtn}>{m.user_id}</button>
+        ) : (
+          <div style={{ fontSize: 10, color: '#94a3b8' }}>{m.user_id}</div>
+        )}
       </div>
-      <span style={{ fontSize: 10, color: '#94a3b8', flexShrink: 0 }}>{fmtDate(m.joined_at)}</span>
+      <span style={{ fontSize: 10, color: '#94a3b8' }}>{fmtDateShortMsk(m.joined_at)}</span>
     </div>
   )
 }
 
-function MetaChip({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function MetaChip({ label, value, mono, extra }: {
+  label: string
+  value: string
+  mono?: boolean
+  extra?: React.ReactNode
+}) {
   return (
     <div style={{ background: '#fff', borderRadius: 10, padding: '8px 14px', boxShadow: '0 1px 3px rgba(0,0,0,.06)' }}>
-      <div style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', fontFamily: mono ? 'monospace' : 'inherit' }}>{value}</div>
+      <div style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>{label}</div>
+      {extra ?? (
+        <div style={{ fontSize: 13, fontWeight: 700, fontFamily: mono ? 'monospace' : 'inherit' }}>{value}</div>
+      )}
     </div>
   )
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' })
-}
-function fmtTime(iso: string) {
-  return new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-}
-
-// ── Styles ────────────────────────────────────────────────────────────────────
-
-const h1: React.CSSProperties      = { fontSize: 22, fontWeight: 800, color: '#1e293b', letterSpacing: '-0.02em' }
-const card: React.CSSProperties    = { background: '#fff', borderRadius: 14, padding: '18px 20px', boxShadow: '0 1px 4px rgba(0,0,0,.06)' }
-const cardTitle: React.CSSProperties = { fontSize: 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }
-const backBtn: React.CSSProperties = {
-  padding: '5px 12px', borderRadius: 8, border: '1px solid #e2e8f0',
-  background: 'transparent', color: '#64748b', fontSize: 12,
-  cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit',
-}
-const avatar: React.CSSProperties = {
-  width: 36, height: 36, borderRadius: '50%', background: '#e0e7ff',
-  color: '#6366f1', fontWeight: 800, fontSize: 14,
-  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-}
+const h1: React.CSSProperties = { fontSize: 22, fontWeight: 800, color: '#1e293b', margin: 0 }
+const card: React.CSSProperties = { background: '#fff', borderRadius: 14, padding: '18px 20px', boxShadow: '0 1px 4px rgba(0,0,0,.06)' }
+const cardTitle: React.CSSProperties = { fontSize: 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 12 }
+const backBtn: React.CSSProperties = { padding: '5px 12px', borderRadius: 8, border: '1px solid #e2e8f0', background: 'transparent', color: '#64748b', fontSize: 12, cursor: 'pointer' }
+const archiveBtn: React.CSSProperties = { padding: '5px 12px', borderRadius: 8, border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', fontSize: 12, cursor: 'pointer', marginLeft: 'auto' }
+const activityRow: React.CSSProperties = { padding: '8px 0', borderBottom: '1px solid #f1f5f9' }
+const pill: React.CSSProperties = { fontSize: 10, background: '#f1f5f9', padding: '1px 6px', borderRadius: 10, marginLeft: 6 }
+const linkBtn: React.CSSProperties = { fontSize: 10, color: '#6366f1', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }
+const thL: React.CSSProperties = { textAlign: 'left', padding: '6px 8px', color: '#64748b', fontWeight: 700 }
+const thR: React.CSSProperties = { ...thL, textAlign: 'right' }
+const tdL: React.CSSProperties = { padding: '6px 8px', textAlign: 'left' }
+const tdR: React.CSSProperties = { ...tdL, textAlign: 'right', fontWeight: 600 }

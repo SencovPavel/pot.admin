@@ -1,56 +1,67 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { fetchGroups } from '@shared/api/api'
+import type { AdminGroupRow } from '@shared/types'
 
-type Group = Awaited<ReturnType<typeof fetchGroups>>[number]
-export type SortKey = 'name' | 'created_at' | 'member_count' | 'event_count' | 'item_count' | 'last_activity'
+export type SortKey = 'name' | 'created_at' | 'member_count' | 'event_count' | 'item_count' | 'last_activity' | 'days_since_activity'
+
+const PAGE_SIZE = 50
 
 export function useGroupsPageVM() {
-  const [groups, setGroups] = useState<Group[]>([])
+  const [rows, setRows] = useState<AdminGroupRow[]>([])
+  const [total, setTotal] = useState(0)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
-  const [sortKey, setSortKey] = useState<SortKey>('last_activity')
-  const [sortAsc, setSortAsc] = useState(false)
   const [search, setSearch] = useState('')
+  const [inactiveDays, setInactiveDays] = useState<number | ''>('')
+  const [hasBotOnly, setHasBotOnly] = useState(false)
+  const [offset, setOffset] = useState(0)
+
+  const load = useCallback(async (off: number, append: boolean) => {
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetchGroups({
+        q: search.trim() || undefined,
+        inactiveDays: inactiveDays === '' ? undefined : Number(inactiveDays),
+        hasBot: hasBotOnly || undefined,
+        limit: PAGE_SIZE,
+        offset: off,
+      })
+      setRows(prev => (append ? [...prev, ...res.rows] : res.rows))
+      setTotal(res.total)
+      setOffset(off)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Ошибка')
+    } finally {
+      setLoading(false)
+    }
+  }, [search, inactiveDays, hasBotOnly])
 
   useEffect(() => {
-    fetchGroups()
-      .then(setGroups)
-      .catch(e => setError(e instanceof Error ? e.message : 'Ошибка'))
-      .finally(() => setLoading(false))
-  }, [])
+    load(0, false)
+  }, [load])
 
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase()
-    return groups.filter(g => !q || g.name.toLowerCase().includes(q) || g.id.includes(q))
-  }, [groups, search])
+  const applyFilters = useCallback(() => {
+    load(0, false)
+  }, [load])
 
-  const sorted = useMemo(() => {
-    return [...filtered].sort((a, b) => {
-      const av: number | string = a[sortKey] ?? ''
-      const bv: number | string = b[sortKey] ?? ''
-      if (typeof av === 'string' && typeof bv === 'string') {
-        const cmp = av.localeCompare(bv, 'ru')
-        return sortAsc ? cmp : -cmp
-      }
-      const cmp = (av as number) - (bv as number)
-      return sortAsc ? cmp : -cmp
-    })
-  }, [filtered, sortKey, sortAsc])
-
-  const handleSort = useCallback((key: SortKey) => {
-    setSortKey(prev => {
-      if (prev === key) { setSortAsc(a => !a); return prev }
-      setSortAsc(false)
-      return key
-    })
-  }, [])
+  const loadMore = useCallback(() => {
+    if (rows.length < total) load(offset + PAGE_SIZE, true)
+  }, [load, rows.length, total, offset])
 
   return {
-    totalCount: groups.length,
-    error, loading,
-    sortKey, sortAsc,
-    search, setSearch,
-    sorted,
-    handleSort,
+    rows,
+    total,
+    error,
+    loading,
+    search,
+    setSearch,
+    inactiveDays,
+    setInactiveDays,
+    hasBotOnly,
+    setHasBotOnly,
+    applyFilters,
+    loadMore,
+    hasMore: rows.length < total,
   }
 }

@@ -72,7 +72,7 @@ export function ActivityPage() {
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={topTypes} layout="vertical" margin={{ top: 4, right: 16, left: 4, bottom: 4 }}>
                   <XAxis type="number" tick={{ fontSize: 10, fill: '#94a3b8' }} allowDecimals={false} />
-                  <YAxis type="category" dataKey="type" tick={{ fontSize: 11, fill: '#64748b' }} width={110} />
+                  <YAxis type="category" dataKey="label" tick={{ fontSize: 11, fill: '#64748b' }} width={140} />
                   <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />
                   <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} name="Кол-во" />
                 </BarChart>
