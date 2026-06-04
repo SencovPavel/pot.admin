@@ -27,7 +27,10 @@ export interface Paginated<T> {
 export interface OverviewStats {
   totalGroups: number
   registeredUsers: number
+  webUsers: number
+  telegramUsers: number
   groupParticipants: number
+  membersWithoutAccount: number
   totalUsers: number
   activeEvents: number
   totalItems: number

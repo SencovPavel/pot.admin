@@ -25,8 +25,18 @@ export function DashboardPage() {
 
       <div style={gridCards}>
         <StatCard label="Групп" value={data.totalGroups} accent="#6366f1" />
-        <StatCard label="Аккаунтов" value={data.registeredUsers} accent="#2AABEE" sub="в users" />
+        <StatCard label="Аккаунтов" value={data.registeredUsers} accent="#64748b" sub="users" />
+        <StatCard label="Telegram" value={data.telegramUsers} accent="#2AABEE" sub="tg_*@telegram.internal" />
+        <StatCard label="Web" value={data.webUsers} accent="#6366f1" />
         <StatCard label="Участников в группах" value={data.groupParticipants} accent="#8b5cf6" />
+        {data.membersWithoutAccount > 0 && (
+          <StatCard
+            label="Без users"
+            value={data.membersWithoutAccount}
+            accent="#ef4444"
+            sub="только group_members"
+          />
+        )}
         <StatCard label="Активных мероприятий" value={data.activeEvents} accent="#10b981" />
         <StatCard label="Товаров" value={data.totalItems} accent="#f59e0b" />
         <StatCard label="DAU" value={data.dau} accent="#ec4899" sub="MSK, analytics" />
