@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { fetchTechnical } from '@shared/api/api'
+import { ensureArray } from '@shared/lib/ensure-array'
 
 type Technical = Awaited<ReturnType<typeof fetchTechnical>>
 
@@ -27,14 +28,15 @@ export function useTechnicalPageVM() {
 
   const hourlyFull = useMemo(
     () => Array.from({ length: 24 }, (_, h) => {
-      const found = data?.hourly.find(r => r.hour === h)
+      const found = ensureArray<Technical['hourly'][number]>(data?.hourly).find(r => r.hour === h)
       return { hour: `${String(h).padStart(2, '0')}:00`, count: found?.count ?? 0 }
     }),
     [data],
   )
 
   const totalByDay = useMemo(
-    () => data?.totalByDay.map(d => ({ day: fmtDay(d.day), count: d.count })) ?? [],
+    () => ensureArray<Technical['totalByDay'][number]>(data?.totalByDay)
+      .map(d => ({ day: fmtDay(d.day), count: d.count })),
     [data],
   )
 

@@ -6,7 +6,7 @@ interface Props {
 }
 
 export function LoginPage({ onLogin }: Props) {
-  const { email, setEmail, password, setPassword, error, loading, handleSubmit } = useLoginPageVM(onLogin)
+  const { email, setEmail, password, setPassword, error, loading, handleSubmit, handleDevLogin } = useLoginPageVM(onLogin)
 
   return (
     <div style={{
@@ -20,7 +20,7 @@ export function LoginPage({ onLogin }: Props) {
           boxShadow: '0 4px 24px rgba(0,0,0,.08)',
         }}
       >
-        <div style={{ fontWeight: 800, fontSize: 20, marginBottom: 4, color: '#1e293b' }}>🧺 Picnic Admin</div>
+        <div style={{ fontWeight: 800, fontSize: 20, marginBottom: 4, color: '#1e293b' }}>Котёл Admin</div>
         <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 28 }}>Вход в панель администратора</div>
 
         <label style={labelStyle}>Email</label>
@@ -61,6 +61,19 @@ export function LoginPage({ onLogin }: Props) {
           }}
         >
           {loading ? 'Вход…' : 'Войти'}
+        </button>
+
+        <button
+          type="button"
+          disabled={loading}
+          onClick={handleDevLogin}
+          style={{
+            marginTop: 10, width: '100%', padding: '10px 0', borderRadius: 10,
+            border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b',
+            fontWeight: 600, fontSize: 13, cursor: loading ? 'not-allowed' : 'pointer',
+          }}
+        >
+          Dev-вход (локально)
         </button>
       </form>
     </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { fetchEventDetail } from '@shared/api/api'
 import { fmtDateMsk, fmtNum } from '@shared/lib/format'
+import { ensureArray } from '@shared/lib/ensure-array'
 import { JsonDetails } from '@shared/components/JsonDetails'
 
 interface Props {
@@ -22,7 +23,12 @@ export function EventDetailPage({ groupId, eventId, onBack }: Props) {
   if (error) return <div style={{ color: '#dc2626' }}>{error}</div>
   if (!data) return <div>Загрузка…</div>
 
-  const { event, items, itemsTotalSum, boughtPct, rsvp, familyRsvp, activity } = data
+  type Detail = NonNullable<typeof data>
+  const { event, itemsTotalSum, boughtPct } = data
+  const items = ensureArray<Detail['items'][number]>(data.items)
+  const rsvp = ensureArray<Detail['rsvp'][number]>(data.rsvp)
+  const familyRsvp = ensureArray<Detail['familyRsvp'][number]>(data.familyRsvp)
+  const activity = ensureArray<Detail['activity'][number]>(data.activity)
 
   return (
     <div>

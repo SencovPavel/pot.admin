@@ -6,15 +6,16 @@
 
 1. Пользователь в таблице `users` с `is_superadmin = TRUE`.
 2. Локально: вход через `POST /auth/dev-login` (см. `DEV_USER_EMAIL` в `.env` бэкенда).
-3. Вход email/пароль на странице логина админки.
+3. Вход email/пароль (`DEV_USER_*` из `picnic-backend/.env`) или кнопка **Dev-вход** на экране логина.
+4. После смены кода бэкенда — перезапустите `npm start`, иначе в ответе не будет `is_superadmin`.
 
 ## Запуск локально
 
 ```bash
-# backend (порт 3001)
+# backend (порт 3001 — должен совпадать с vite proxy)
 cd picnic-backend && npm start
 
-# admin UI (порт 5174, прокси на API)
+# admin UI (порт 5174, прокси /auth и /admin → localhost:3001)
 cd picnic-admin && npm run dev
 ```
 

@@ -14,8 +14,8 @@ export default defineConfig({
   server: {
     port: 5174,
     proxy: {
-      '/admin': 'http://localhost:3000',
-      '/auth':  'http://localhost:3000',
+      '/admin': 'http://localhost:3001',
+      '/auth':  'http://localhost:3001',
     },
   },
 })

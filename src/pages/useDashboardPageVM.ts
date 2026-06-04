@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { fetchOverview, fetchFunnel, fetchRetention } from '@shared/api/api'
+import { ensureArray } from '@shared/lib/ensure-array'
 import type { OverviewStats, FunnelStep } from '@shared/types'
 
 function formatDay(iso: string) {
@@ -22,14 +23,15 @@ export function useDashboardPageVM() {
     Promise.all([fetchOverview(), fetchFunnel(30), fetchRetention()])
       .then(([ov, fn, ret]) => {
         setData(ov)
-        setFunnel(fn.steps)
+        setFunnel(ensureArray<FunnelStep>(fn.steps))
         setRetention(ret)
       })
       .catch(e => setError(e instanceof Error ? e.message : 'Ошибка'))
   }, [])
 
   const sparklineData = useMemo(
-    () => data?.sparkline.map(d => ({ day: formatDay(d.day), count: d.count })) ?? [],
+    () => ensureArray<OverviewStats['sparkline'][number]>(data?.sparkline)
+      .map(d => ({ day: formatDay(d.day), count: d.count })),
     [data],
   )
 

@@ -37,6 +37,14 @@ export async function logout() {
   await fetch_('/auth/logout', { method: 'POST' })
 }
 
+/** Локальный вход без пароля (только NODE_ENV !== production на бэкенде). */
+export async function devLogin() {
+  const r = await fetch_('/auth/dev-login', { method: 'POST' })
+  const data = await r.json() as { error?: string; is_superadmin?: boolean; id: string; name: string; email: string }
+  if (!r.ok) throw new Error(data.error ?? 'dev-login недоступен')
+  return data
+}
+
 export async function getMe() {
   const r = await fetch_('/auth/me')
   if (!r.ok) return null

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { fetchActivity } from '@shared/api/api'
+import { ensureArray } from '@shared/lib/ensure-array'
 
 type Activity = Awaited<ReturnType<typeof fetchActivity>>
 
@@ -29,7 +30,7 @@ export function useActivityPageVM() {
   const byDayPivot = useMemo(() => {
     if (!data) return []
     const map = new Map<string, Record<string, string | number>>()
-    for (const row of data.byDayType) {
+    for (const row of ensureArray<Activity['byDayType'][number]>(data.byDayType)) {
       if (!map.has(row.day)) map.set(row.day, { day: formatDay(row.day) })
       map.get(row.day)![row.type] = row.count
     }
@@ -40,17 +41,20 @@ export function useActivityPageVM() {
   const platformPivot = useMemo(() => {
     if (!data) return []
     const map = new Map<string, Record<string, string | number>>()
-    for (const row of data.platforms) {
+    for (const row of ensureArray<Activity['platforms'][number]>(data.platforms)) {
       if (!map.has(row.day)) map.set(row.day, { day: formatDay(row.day) })
       map.get(row.day)![row.platform] = row.count
     }
     return [...map.values()].sort((a, b) => String(a.day).localeCompare(String(b.day)))
   }, [data])
 
-  const topTypes = useMemo(() => data?.topTypes ?? [], [data])
+  const topTypes = useMemo(
+    () => ensureArray<Activity['topTypes'][number]>(data?.topTypes),
+    [data],
+  )
 
   const platformKeys = useMemo(
-    () => [...new Set(data?.platforms.map(p => p.platform) ?? [])],
+    () => [...new Set(ensureArray<Activity['platforms'][number]>(data?.platforms).map(p => p.platform))],
     [data],
   )
 

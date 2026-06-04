@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { fetchGroupDetail } from '@shared/api/api'
+import { ensureArray } from '@shared/lib/ensure-array'
 
 type Detail = Awaited<ReturnType<typeof fetchGroupDetail>>
 
@@ -18,14 +19,19 @@ export function useGroupDetailPageVM(groupId: string) {
       .finally(() => setLoading(false))
   }, [groupId])
 
-  const admins = useMemo(
-    () => data?.members.filter(m => m.is_admin) ?? [],
+  const members = useMemo(
+    () => ensureArray<NonNullable<Detail>['members'][number]>(data?.members),
     [data],
   )
 
+  const admins = useMemo(
+    () => members.filter(m => m.is_admin),
+    [members],
+  )
+
   const regularMembers = useMemo(
-    () => data?.members.filter(m => !m.is_admin) ?? [],
-    [data],
+    () => members.filter(m => !m.is_admin),
+    [members],
   )
 
   const reload = () => {

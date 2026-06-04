@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { login } from '@shared/api/api'
+import { login, devLogin, getMe } from '@shared/api/api'
 import type { Me } from '@shared/types'
 
 export function useLoginPageVM(onLogin: (me: Me) => void) {
@@ -12,8 +12,9 @@ export function useLoginPageVM(onLogin: (me: Me) => void) {
     setError('')
     setLoading(true)
     try {
-      const me = await login(email, password)
-      if (!me.is_superadmin) {
+      await login(email, password)
+      const me = await getMe()
+      if (!me?.is_superadmin) {
         setError('Нет прав администратора')
         return
       }
@@ -25,5 +26,23 @@ export function useLoginPageVM(onLogin: (me: Me) => void) {
     }
   }, [email, password, onLogin])
 
-  return { email, setEmail, password, setPassword, error, loading, handleSubmit }
+  const handleDevLogin = useCallback(async () => {
+    setError('')
+    setLoading(true)
+    try {
+      await devLogin()
+      const me = await getMe()
+      if (!me?.is_superadmin) {
+        setError('Нет прав администратора (перезапустите backend с актуальным кодом)')
+        return
+      }
+      onLogin(me as Me)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка dev-login')
+    } finally {
+      setLoading(false)
+    }
+  }, [onLogin])
+
+  return { email, setEmail, password, setPassword, error, loading, handleSubmit, handleDevLogin }
 }
